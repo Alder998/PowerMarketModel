@@ -107,3 +107,67 @@ class ENTSOEDataLoader:
         print("Number of bidding zones for DAM Price, load, forecast: " + str(len(aggregate_load_data["map_code"].unique())) + " (dict:" + str(len(bidding_zones.keys())) + ")")
 
         return aggregate_load_data
+
+    def downloadENTSOEData(self, api_key, start_date, end_date, bidding_zones, save_path=None, n_points=2):
+
+        gen_data = self.downloadENTSOEGenerationData(api_key=api_key, start_date=start_date, end_date=end_date,bidding_zones=bidding_zones)
+        gen_data = gen_data.drop(columns=["zoneName"])
+        load_data = self.downloadENTSOEPriceLoadData(api_key=api_key, start_date=start_date, end_date=end_date, bidding_zones=bidding_zones)
+        load_data = load_data.drop(columns=["zoneName"])
+
+        entsoe_aggregate_data = pd.merge(left=gen_data, right=load_data,
+                                         on=["Date", "zone", "short_code", "code", "map_code", "geometry"], how="inner")
+
+        aggregate_entsoe_zones_final = pd.concat([entsoe_aggregate_data[["Date", "zone", "short_code", "code", "map_code", "geometry"]], entsoe_aggregate_data.drop(columns=["Date", "zone", "short_code", "code", "map_code", "geometry"])],axis=1)
+
+        aggregate_entsoe_zones_final["Date"] = pd.to_datetime(aggregate_entsoe_zones_final["Date"], utc=True)
+        aggregate_entsoe_zones_final["Date"] = aggregate_entsoe_zones_final["Date"].dt.tz_localize(None)
+
+        aggregate_entsoe_zones_final["year"] = aggregate_entsoe_zones_final["Date"].dt.year
+        aggregate_entsoe_zones_final["month"] = aggregate_entsoe_zones_final["Date"].dt.month
+        aggregate_entsoe_zones_final["day"] = aggregate_entsoe_zones_final["Date"].dt.day
+        aggregate_entsoe_zones_final["hour"] = aggregate_entsoe_zones_final["Date"].dt.hour
+        aggregate_entsoe_zones_final["minute"] = aggregate_entsoe_zones_final["Date"].dt.minute
+        aggregate_entsoe_zones_final["day_of_week"] = aggregate_entsoe_zones_final["Date"].dt.dayofweek
+
+        print("AGGREGATE DATA - Number of bidding zones: " + str(len(aggregate_entsoe_zones_final["map_code"].unique())) + " (dict:" + str(len(bidding_zones.keys())) + ")")
+
+        # From MultiPolygon to latitude-longitude
+        entsoe_data_unique_zones = aggregate_entsoe_zones_final.drop_duplicates(subset=["geometry"])
+        zones_gdf = gpd.GeoDataFrame(entsoe_data_unique_zones, geometry="geometry", crs="EPSG:4326")
+
+        def regular_grid_n_points(gdf, n_points=50):
+            all_points = []
+
+            for idx, row in gdf.iterrows():
+                polygon = row.geometry
+                zone = row["zone"]
+
+                # area bounding box
+                minx, miny, maxx, maxy = polygon.bounds
+                area_bbox = (maxx - minx) * (maxy - miny)
+
+                # step per avere circa n punti
+                step = np.sqrt(area_bbox / n_points)
+
+                xs = np.arange(minx, maxx, step)
+                ys = np.arange(miny, maxy, step)
+
+                for x in xs:
+                    for y in ys:
+                        p = Point(x, y)
+                        if polygon.contains(p):
+                            all_points.append([zone, y, x])
+
+            return pd.DataFrame(all_points, columns=["zone", "lat", "lon"])
+
+        gdf = regular_grid_n_points(gdf=zones_gdf, n_points=n_points)
+        entsoe_data_enriched = pd.merge(left=aggregate_entsoe_zones_final, right=gdf, on=["zone"], how="inner")
+
+        print("AGGREGATE DATA - Number of bidding zones: " + str(
+            len(entsoe_data_enriched["map_code"].unique())) + " (dict:" + str(len(bidding_zones.keys())) + ")")
+
+        if save_path is not None:
+            entsoe_data_enriched.drop(columns=["geometry"]).to_csv(save_path)
+
+        return aggregate_entsoe_zones_final
