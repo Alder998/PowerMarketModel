@@ -3,25 +3,39 @@ ENTSO-E Data Loader, storage and saving on Database
 """
 
 import pandas as pd
-import matplotlib.pyplot as plt
 from entsoe import EntsoePandasClient
 import geopandas as gpd
-import copy
 import numpy as np
 from shapely.geometry import Point
-from shapely import wkt
+import json
+from pathlib import Path
 from datetime import datetime
 
 class ENTSOEDataLoader:
 
     def __init__(self):
+        self.API_Key = self.getConfig("api_key")
         pass
+
+    def getConfig (self, key):
+
+        PROJECT_ROOT = Path(__file__).resolve().parents[1]
+        CONFIG_PATH = PROJECT_ROOT / "DataModule" / "credentials" / "credentials.json"
+
+        if not CONFIG_PATH.is_file():
+            raise FileNotFoundError("configuration file has not been found.")
+
+        with CONFIG_PATH.open("r", encoding="utf-8") as file:
+            config = json.load(file)
+
+        api_key = config[key]
+        return api_key
 
     def downloadENTSOEGenerationData(self, api_key, start_date, end_date, bidding_zones):
 
         aggregate_generation = []
         for i, bz in enumerate(bidding_zones):
-            print("Processing Generation: " + bz + " - " + str(i + 1) + " out of " + str(
+            print("ENTSO-E DATA LOADER - Processing Generation: " + bz + " - " + str(i + 1) + " out of " + str(
                 len(bidding_zones.keys())) + "...")
             client = EntsoePandasClient(api_key=api_key)
             generation = client.query_generation(bidding_zones[bz]["code"], start=pd.Timestamp(start_date, tz="Europe/Brussels"), end=pd.Timestamp(end_date, tz="Europe/Brussels"))
@@ -59,13 +73,13 @@ class ENTSOEDataLoader:
 
         # Merge with gpd geometry
 
-        print("Merging with Multipolygon geometry...")
+        print("ENTSO-E DATA LOADER - Merging with Multipolygon geometry...")
 
         url = "https://raw.githubusercontent.com/electricitymaps/electricitymaps-contrib/v1.238.0/web/geo/world.geojson"
         zones = gpd.read_file(url)
         aggregate_generation = pd.merge(left=aggregate_generation, right=zones[["zoneName", "geometry"]],left_on="map_code", right_on="zoneName", how="left")
 
-        print("Number of bidding zones for generation: " + str(len(aggregate_generation["map_code"].unique())) + " (dict:" + str(len(bidding_zones.keys())) + ")")
+        print("ENTSO-E DATA LOADER - Number of bidding zones for generation: " + str(len(aggregate_generation["map_code"].unique())) + " (dict:" + str(len(bidding_zones.keys())) + ")")
 
         return aggregate_generation
 
@@ -73,7 +87,7 @@ class ENTSOEDataLoader:
 
         aggregate_load_data = []
         for i, bz in enumerate(bidding_zones):
-            print("Processing Load, Load Forecast, DAM Prices: " + bz + " - " + str(i + 1) + " out of " + str(
+            print("ENTSO-E DATA LOADER - Processing Load, Load Forecast, DAM Prices: " + bz + " - " + str(i + 1) + " out of " + str(
                 len(bidding_zones.keys())) + "...")
             client = EntsoePandasClient(api_key=api_key)
 
@@ -98,13 +112,13 @@ class ENTSOEDataLoader:
         aggregate_load_data = aggregate_load_data.reset_index()
         aggregate_load_data = aggregate_load_data.rename(columns={"index": "Date"})
 
-        print("Merging with Multipolygon geometry...")
+        print("ENTSO-E DATA LOADER - Merging with Multipolygon geometry...")
 
         url = "https://raw.githubusercontent.com/electricitymaps/electricitymaps-contrib/v1.238.0/web/geo/world.geojson"
         zones = gpd.read_file(url)
         aggregate_load_data = pd.merge(left=aggregate_load_data, right=zones[["zoneName", "geometry"]],left_on="map_code", right_on="zoneName", how="left")
 
-        print("Number of bidding zones for DAM Price, load, forecast: " + str(len(aggregate_load_data["map_code"].unique())) + " (dict:" + str(len(bidding_zones.keys())) + ")")
+        print("ENTSO-E DATA LOADER - Number of bidding zones for DAM Price, load, forecast: " + str(len(aggregate_load_data["map_code"].unique())) + " (dict:" + str(len(bidding_zones.keys())) + ")")
 
         return aggregate_load_data
 
@@ -130,7 +144,7 @@ class ENTSOEDataLoader:
         aggregate_entsoe_zones_final["minute"] = aggregate_entsoe_zones_final["Date"].dt.minute
         aggregate_entsoe_zones_final["day_of_week"] = aggregate_entsoe_zones_final["Date"].dt.dayofweek
 
-        print("AGGREGATE DATA - Number of bidding zones: " + str(len(aggregate_entsoe_zones_final["map_code"].unique())) + " (dict:" + str(len(bidding_zones.keys())) + ")")
+        print("ENTSO-E DATA LOADER - Number of bidding zones: " + str(len(aggregate_entsoe_zones_final["map_code"].unique())) + " (dict:" + str(len(bidding_zones.keys())) + ")")
 
         # From MultiPolygon to latitude-longitude
         entsoe_data_unique_zones = aggregate_entsoe_zones_final.drop_duplicates(subset=["geometry"])
@@ -164,7 +178,7 @@ class ENTSOEDataLoader:
         gdf = regular_grid_n_points(gdf=zones_gdf, n_points=n_points)
         entsoe_data_enriched = pd.merge(left=aggregate_entsoe_zones_final, right=gdf, on=["zone"], how="inner")
 
-        print("AGGREGATE DATA - Number of bidding zones: " + str(
+        print("ENTSO-E DATA LOADER - Number of bidding zones: " + str(
             len(entsoe_data_enriched["map_code"].unique())) + " (dict:" + str(len(bidding_zones.keys())) + ")")
 
         if save_path is not None:
