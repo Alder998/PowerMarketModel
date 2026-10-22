@@ -31,13 +31,13 @@ class ENTSOEDataLoader:
         api_key = config[key]
         return api_key
 
-    def downloadENTSOEGenerationData(self, api_key, start_date, end_date, bidding_zones):
+    def downloadENTSOEGenerationData(self, start_date, end_date, bidding_zones):
 
         aggregate_generation = []
         for i, bz in enumerate(bidding_zones):
             print("ENTSO-E DATA LOADER - Processing Generation: " + bz + " - " + str(i + 1) + " out of " + str(
                 len(bidding_zones.keys())) + "...")
-            client = EntsoePandasClient(api_key=api_key)
+            client = EntsoePandasClient(api_key=self.API_Key)
             generation = client.query_generation(bidding_zones[bz]["code"], start=pd.Timestamp(start_date, tz="Europe/Brussels"), end=pd.Timestamp(end_date, tz="Europe/Brussels"))
             # Process columns
             new_columns = []
@@ -83,13 +83,13 @@ class ENTSOEDataLoader:
 
         return aggregate_generation
 
-    def downloadENTSOEPriceLoadData(self, api_key, start_date, end_date, bidding_zones):
+    def downloadENTSOEPriceLoadData(self, start_date, end_date, bidding_zones):
 
         aggregate_load_data = []
         for i, bz in enumerate(bidding_zones):
             print("ENTSO-E DATA LOADER - Processing Load, Load Forecast, DAM Prices: " + bz + " - " + str(i + 1) + " out of " + str(
                 len(bidding_zones.keys())) + "...")
-            client = EntsoePandasClient(api_key=api_key)
+            client = EntsoePandasClient(api_key=self.API_Key)
 
             # Launch query
             load = client.query_load(bidding_zones[bz]["code"], start=pd.Timestamp(start_date, tz="Europe/Brussels"),
@@ -122,11 +122,11 @@ class ENTSOEDataLoader:
 
         return aggregate_load_data
 
-    def downloadENTSOEData(self, api_key, start_date, end_date, bidding_zones, save_path=None, n_points=2):
+    def downloadENTSOEData(self, start_date, end_date, bidding_zones, save_path=None, n_points=2):
 
-        gen_data = self.downloadENTSOEGenerationData(api_key=api_key, start_date=start_date, end_date=end_date,bidding_zones=bidding_zones)
+        gen_data = self.downloadENTSOEGenerationData(start_date=start_date, end_date=end_date,bidding_zones=bidding_zones)
         gen_data = gen_data.drop(columns=["zoneName"])
-        load_data = self.downloadENTSOEPriceLoadData(api_key=api_key, start_date=start_date, end_date=end_date, bidding_zones=bidding_zones)
+        load_data = self.downloadENTSOEPriceLoadData(start_date=start_date, end_date=end_date, bidding_zones=bidding_zones)
         load_data = load_data.drop(columns=["zoneName"])
 
         entsoe_aggregate_data = pd.merge(left=gen_data, right=load_data,
