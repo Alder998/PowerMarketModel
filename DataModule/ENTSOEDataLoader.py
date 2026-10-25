@@ -13,7 +13,7 @@ from pathlib import Path
 class ENTSOEDataLoader:
 
     def __init__(self, start_date, end_date, bidding_zones):
-        self.API_Key = self.getConfig("api_key")
+        self.API_Key = self.getConfig("api_key_ENTSOE")
         self.start_date = start_date
         self.end_date = end_date
         self.bidding_zones = bidding_zones
@@ -175,3 +175,6 @@ class ENTSOEDataLoader:
         print("ENTSO-E DATA LOADER - Data Loaded correctly for the selected dates.")
 
         return aggregate_entsoe_zones_final
+
+    # Method to store
+    #def downloadAndSaveENTSOEData
