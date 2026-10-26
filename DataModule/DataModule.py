@@ -49,6 +49,9 @@ class DataModule:
     # Method to create Table
     def createTable (self, tableName, date_col):
 
+        # Create Table on SQL (postgres)
+        self.pandas_dataframe.to_sql(name=tableName, con=self.engine, if_exists="append")
+
         # Backup on OneDrive
         path = self.getConfig(key="db_path")
         # Save new table
@@ -59,6 +62,9 @@ class DataModule:
 
     # Method to update Table
     def updateTable (self, tableName, date_col):
+
+        # Main update (working because if_exists="append")
+        self.pandas_dataframe.to_sql(name=tableName, con=self.engine, if_exists="append")
 
         # Backup
         path = self.getConfig(key="db_path")
