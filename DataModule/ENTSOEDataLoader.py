@@ -9,6 +9,7 @@ import numpy as np
 from shapely.geometry import Point
 import json
 from pathlib import Path
+from DataModule import DataModule as dm
 
 class ENTSOEDataLoader:
 
@@ -177,4 +178,9 @@ class ENTSOEDataLoader:
         return aggregate_entsoe_zones_final
 
     # Method to store
-    #def downloadAndSaveENTSOEData
+    def downloadAndSaveENTSOEData (self, table_name, date_col):
+
+        # Load
+        pandas_dataframe = self.downloadENTSOEData()
+        # Save or Update
+        dm.DataModule(pandas_dataframe=pandas_dataframe).createOrUpdate(tableName=table_name, date_col=date_col)
