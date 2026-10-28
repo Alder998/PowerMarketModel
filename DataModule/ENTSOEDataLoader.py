@@ -9,7 +9,7 @@ import numpy as np
 from shapely.geometry import Point
 import json
 from pathlib import Path
-from DataModule import DataModule as dm
+import DataModule as dm
 
 class ENTSOEDataLoader:
 
@@ -34,7 +34,7 @@ class ENTSOEDataLoader:
         api_key = config[key]
         return api_key
 
-    def downloadENTSOEGenerationData(self):
+    def downloadENTSOEGenerationData(self, geometry=True):
 
         aggregate_generation = []
         for i, bz in enumerate(self.bidding_zones):
@@ -75,13 +75,14 @@ class ENTSOEDataLoader:
         aggregate_generation = aggregate_generation.rename(columns={"index": "Date"})
 
         # Merge with gpd geometry
-        url = "https://raw.githubusercontent.com/electricitymaps/electricitymaps-contrib/v1.238.0/web/geo/world.geojson"
-        zones = gpd.read_file(url)
-        aggregate_generation = pd.merge(left=aggregate_generation, right=zones[["zoneName", "geometry"]],left_on="map_code", right_on="zoneName", how="left")
+        if geometry:
+            url = "https://raw.githubusercontent.com/electricitymaps/electricitymaps-contrib/v1.238.0/web/geo/world.geojson"
+            zones = gpd.read_file(url)
+            aggregate_generation = pd.merge(left=aggregate_generation, right=zones[["zoneName", "geometry"]],left_on="map_code", right_on="zoneName", how="left")
 
         return aggregate_generation
 
-    def downloadENTSOEPriceLoadData(self):
+    def downloadENTSOEPriceLoadData(self, geometry=True):
 
         aggregate_load_data = []
         for i, bz in enumerate(self.bidding_zones):
@@ -110,23 +111,27 @@ class ENTSOEDataLoader:
         aggregate_load_data = aggregate_load_data.reset_index()
         aggregate_load_data = aggregate_load_data.rename(columns={"index": "Date"})
 
-        url = "https://raw.githubusercontent.com/electricitymaps/electricitymaps-contrib/v1.238.0/web/geo/world.geojson"
-        zones = gpd.read_file(url)
-        aggregate_load_data = pd.merge(left=aggregate_load_data, right=zones[["zoneName", "geometry"]],left_on="map_code", right_on="zoneName", how="left")
+        if geometry:
+            url = "https://raw.githubusercontent.com/electricitymaps/electricitymaps-contrib/v1.238.0/web/geo/world.geojson"
+            zones = gpd.read_file(url)
+            aggregate_load_data = pd.merge(left=aggregate_load_data, right=zones[["zoneName", "geometry"]],left_on="map_code", right_on="zoneName", how="left")
 
         return aggregate_load_data
 
-    def downloadENTSOEData(self, save_path=None, n_points=1):
+    def downloadENTSOEData(self, save_path=None, n_points=1, geometry=False):
 
-        gen_data = self.downloadENTSOEGenerationData()
-        gen_data = gen_data.drop(columns=["zoneName"])
-        load_data = self.downloadENTSOEPriceLoadData()
-        load_data = load_data.drop(columns=["zoneName"])
+        gen_data = self.downloadENTSOEGenerationData(geometry=geometry)
+        load_data = self.downloadENTSOEPriceLoadData(geometry=geometry)
+
+        merge_cols = ["Date", "zone", "short_code", "code", "map_code"]
+        if geometry:
+            load_data = load_data.drop(columns=["zoneName"])
+            merge_cols = merge_cols + ["geometry"]
 
         entsoe_aggregate_data = pd.merge(left=gen_data, right=load_data,
-                                         on=["Date", "zone", "short_code", "code", "map_code", "geometry"], how="inner")
+                                         on=merge_cols, how="inner")
 
-        aggregate_entsoe_zones_final = pd.concat([entsoe_aggregate_data[["Date", "zone", "short_code", "code", "map_code", "geometry"]], entsoe_aggregate_data.drop(columns=["Date", "zone", "short_code", "code", "map_code", "geometry"])],axis=1)
+        aggregate_entsoe_zones_final = pd.concat([entsoe_aggregate_data[merge_cols], entsoe_aggregate_data.drop(columns=merge_cols)],axis=1)
 
         aggregate_entsoe_zones_final["Date"] = pd.to_datetime(aggregate_entsoe_zones_final["Date"], utc=True)
         aggregate_entsoe_zones_final["Date"] = aggregate_entsoe_zones_final["Date"].dt.tz_localize(None)

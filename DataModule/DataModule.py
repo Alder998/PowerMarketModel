@@ -53,7 +53,7 @@ class DataModule:
         self.pandas_dataframe.to_sql(name=tableName, con=self.engine, if_exists="append")
 
         # Backup on OneDrive
-        path = self.getConfig(key="db_path")
+        path = self.getConfig(key="path_OneDrive")
         # Save new table
         self.pandas_dataframe.to_csv(path + "\\" + tableName + ".csv", index=False)
         # Log
@@ -67,7 +67,7 @@ class DataModule:
         self.pandas_dataframe.to_sql(name=tableName, con=self.engine, if_exists="append")
 
         # Backup
-        path = self.getConfig(key="db_path")
+        path = self.getConfig(key="path_OneDrive")
         # Read
         existing = pd.read_csv(path + "\\" + tableName + ".csv")
         rows_ex, start_date_ex, end_date_ex = len(existing.index), existing[date_col].min(), existing[date_col].max()
@@ -85,7 +85,7 @@ class DataModule:
     # Method to create or update Table
     def createOrUpdate (self, tableName, date_col):
 
-        path = self.getConfig(key="db_path")
+        path = self.getConfig(key="path_OneDrive")
         if os.path.exists(path + "\\" + tableName + ".csv"):
             self.updateTable(tableName=tableName, date_col=date_col)
         else:
