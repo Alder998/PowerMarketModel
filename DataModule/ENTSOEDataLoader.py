@@ -118,7 +118,7 @@ class ENTSOEDataLoader:
 
         return aggregate_load_data
 
-    def downloadENTSOEData(self, save_path=None, n_points=1, geometry=False):
+    def downloadENTSOEData(self, save_path=None, n_points=1, geometry=True):
 
         gen_data = self.downloadENTSOEGenerationData(geometry=geometry)
         load_data = self.downloadENTSOEPriceLoadData(geometry=geometry)
@@ -143,49 +143,47 @@ class ENTSOEDataLoader:
         aggregate_entsoe_zones_final["minute"] = aggregate_entsoe_zones_final["Date"].dt.minute
         aggregate_entsoe_zones_final["day_of_week"] = aggregate_entsoe_zones_final["Date"].dt.dayofweek
 
-        # From MultiPolygon to latitude-longitude
-        entsoe_data_unique_zones = aggregate_entsoe_zones_final.drop_duplicates(subset=["geometry"])
-        zones_gdf = gpd.GeoDataFrame(entsoe_data_unique_zones, geometry="geometry", crs="EPSG:4326")
+        # From MultiPolygon to latitude-longitude, if required
+        if geometry:
+            entsoe_data_unique_zones = aggregate_entsoe_zones_final.drop_duplicates(subset=["geometry"])
+            zones_gdf = gpd.GeoDataFrame(entsoe_data_unique_zones, geometry="geometry", crs="EPSG:4326")
 
-        def regular_grid_n_points(gdf, n_points=50):
-            all_points = []
+            def regular_grid_n_points(gdf, n_points=50):
+                all_points = []
 
-            for idx, row in gdf.iterrows():
-                polygon = row.geometry
-                zone = row["zone"]
+                for idx, row in gdf.iterrows():
+                    polygon = row.geometry
+                    zone = row["zone"]
 
-                # area bounding box
-                minx, miny, maxx, maxy = polygon.bounds
-                area_bbox = (maxx - minx) * (maxy - miny)
+                    # area bounding box
+                    minx, miny, maxx, maxy = polygon.bounds
+                    area_bbox = (maxx - minx) * (maxy - miny)
 
-                # step per avere circa n punti
-                step = np.sqrt(area_bbox / n_points)
+                    # step per avere circa n punti
+                    step = np.sqrt(area_bbox / n_points)
 
-                xs = np.arange(minx, maxx, step)
-                ys = np.arange(miny, maxy, step)
+                    xs = np.arange(minx, maxx, step)
+                    ys = np.arange(miny, maxy, step)
 
-                for x in xs:
-                    for y in ys:
-                        p = Point(x, y)
-                        if polygon.contains(p):
-                            all_points.append([zone, y, x])
+                    for x in xs:
+                        for y in ys:
+                            p = Point(x, y)
+                            if polygon.contains(p):
+                                all_points.append([zone, y, x])
 
-            return pd.DataFrame(all_points, columns=["zone", "lat", "lon"])
+                return pd.DataFrame(all_points, columns=["zone", "lat", "lon"])
 
-        gdf = regular_grid_n_points(gdf=zones_gdf, n_points=n_points)
-        entsoe_data_enriched = pd.merge(left=aggregate_entsoe_zones_final, right=gdf, on=["zone"], how="inner")
-
-        if save_path is not None:
-            entsoe_data_enriched.drop(columns=["geometry"]).to_csv(save_path)
+            gdf = regular_grid_n_points(gdf=zones_gdf, n_points=n_points)
+            entsoe_data_enriched = pd.merge(left=aggregate_entsoe_zones_final, right=gdf, on=["zone"], how="inner")
 
         print("ENTSO-E DATA LOADER - Data Loaded correctly for the selected dates.")
 
         return aggregate_entsoe_zones_final
 
     # Method to store
-    def downloadAndSaveENTSOEData (self, table_name, date_col):
+    def downloadAndSaveENTSOEData (self, table_name, date_col, geometry):
 
         # Load
-        pandas_dataframe = self.downloadENTSOEData()
+        pandas_dataframe = self.downloadENTSOEData(geometry=geometry)
         # Save or Update
         dm.DataModule(pandas_dataframe=pandas_dataframe).createOrUpdate(tableName=table_name, date_col=date_col)
