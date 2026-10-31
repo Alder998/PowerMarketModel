@@ -118,7 +118,7 @@ class ENTSOEDataLoader:
 
         return aggregate_load_data
 
-    def downloadENTSOEData(self, save_path=None, n_points=1, geometry=True):
+    def downloadENTSOEData(self, n_points=1, geometry=True):
 
         gen_data = self.downloadENTSOEGenerationData(geometry=geometry)
         load_data = self.downloadENTSOEPriceLoadData(geometry=geometry)
