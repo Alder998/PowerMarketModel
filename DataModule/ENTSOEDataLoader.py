@@ -180,7 +180,7 @@ class ENTSOEDataLoader:
 
         return aggregate_entsoe_zones_final
 
-    # Method to store
+    # Method to store thet ENTSO-E data on DB
     def downloadAndSaveENTSOEData (self, table_name, date_col, geometry):
 
         # Load

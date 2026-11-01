@@ -50,7 +50,7 @@ class DataModule:
     def createTable (self, tableName, date_col):
 
         # Create Table on SQL (postgres)
-        self.pandas_dataframe.to_sql(name=tableName, con=self.engine, if_exists="append")
+        self.pandas_dataframe.to_sql(name=tableName, con=self.engine, if_exists="replace")
 
         # Backup on OneDrive
         path = self.getConfig(key="path_OneDrive")
@@ -60,17 +60,40 @@ class DataModule:
         rows_ex, start_date_ex, end_date_ex = len(self.pandas_dataframe.index), self.pandas_dataframe[date_col].min(), self.pandas_dataframe[date_col].max()
         print("DATA MODULE - BACKUP - File created. Rows: " + str(rows_ex) + ", first date: " + datetime.strftime(start_date_ex, "%Y-%m-%d") + ", last date: "+ datetime.strftime(end_date_ex, "%Y-%m-%d"))
 
+    # Method to read data from table
+    def loadDataFromTable (self, tableName):
+
+        query = 'SELECT * FROM public."' + tableName + '"'
+        dataframe = pd.read_sql(query, self.engine)
+
+        return dataframe
+
     # Method to update Table
     def updateTable (self, tableName, date_col):
 
-        # Main update (working because if_exists="append")
-        self.pandas_dataframe.to_sql(name=tableName, con=self.engine, if_exists="append")
+        # Main update: the "append" method should work, and this is standard.
+        # But in this case it does not work, because for every update new columns could be added (if a generation
+        # source is new, or something actually changes), and new columns for SQL means errors in making the INSERT, even
+        # though is standard and proven.
+        # Therefore, the flow will be "load in pandas" - "update in pandas" - "save back on SQL"
+        # It would be really much slower for dataset creation, not as much slower for adding a new day (96 observations)
+
+        # Therefore, read existing
+        existing_dataframe = self.loadDataFromTable(tableName=tableName)
+        # Update through a concat on axis=0
+        new_dataframe = pd.concat([existing_dataframe, self.pandas_dataframe], axis=0)
+        # Re-work dataframe (drop duplicates, fill the new columns with 0)
+        new_dataframe = new_dataframe.drop_duplicates().reset_index()
+        new_dataframe = new_dataframe.fillna(0)
+        # Save back on SQL (with create table, unfortunately)
+        self.createTable(tableName=tableName, date_col=date_col)
+        # Get dataFrame rows and data
+        rows_ex, start_date_ex, end_date_ex, number_of_zones = len(new_dataframe.index), new_dataframe[date_col].min(), new_dataframe[date_col].max(), new_dataframe["short_code"].unique()
 
         # Backup
         path = self.getConfig(key="path_OneDrive")
         # Read
         existing = pd.read_csv(path + "\\" + tableName + ".csv")
-        rows_ex, start_date_ex, end_date_ex = len(existing.index), existing[date_col].min(), existing[date_col].max()
         # Update with a concat
         new_data = pd.concat([existing, self.pandas_dataframe], axis=0)
         # Drop Duplicates
@@ -79,8 +102,8 @@ class DataModule:
         # Save again
         new_data.to_csv(path + "\\" + tableName + ".csv", index=False)
         # Log
-        print("DATA MODULE - BACKUP - Rows before updating: " + str(rows_ex) + ", first date: " + datetime.strftime(start_date_ex, "%Y-%m-%d") + ", last date: "+ datetime.strftime(end_date_ex, "%Y-%m-%d"))
-        print("DATA MODULE - BACKUP - Rows after updating: " + str(rows_n) + ", first date: " +  datetime.strftime(start_date_n, "%Y-%m-%d") + ", last date: "+ datetime.strftime(end_date_n, "%Y-%m-%d"))
+        print("DATA MODULE - BACKUP - Rows before updating: " + str(rows_ex) + ", first date: " + datetime.strftime(start_date_ex, "%Y-%m-%d") + ", last date: "+ datetime.strftime(end_date_ex, "%Y-%m-%d") + ", Number of zones: " + str(number_of_zones) + ".")
+        print("DATA MODULE - BACKUP - Rows after updating: " + str(rows_n) + ", first date: " +  datetime.strftime(start_date_n, "%Y-%m-%d") + ", last date: "+ datetime.strftime(end_date_n, "%Y-%m-%d") + ", Number of zones: " + str(number_of_zones) + ".")
 
     # Method to create or update Table
     def createOrUpdate (self, tableName, date_col):
