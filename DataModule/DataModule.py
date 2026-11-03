@@ -11,13 +11,12 @@ import os
 
 class DataModule:
 
-    def __init__(self, pandas_dataframe):
+    def __init__(self):
         self.user = self.getConfig("db_user")
         self.port = self.getConfig("db_port")
         self.password = self.getConfig("db_password")
         self.name = self.getConfig("db_name")
         self.engine = self.create_engine()
-        self.pandas_dataframe = pandas_dataframe
         pass
 
     # Get Config Method
@@ -47,17 +46,17 @@ class DataModule:
             conn.execute(text(query))
 
     # Method to create Table
-    def createTable (self, tableName, date_col):
+    def createTable (self, pandas_dataframe, tableName, date_col):
 
         # Create Table on SQL (postgres)
-        self.pandas_dataframe.to_sql(name=tableName, con=self.engine, if_exists="replace")
+        pandas_dataframe.to_sql(name=tableName, con=self.engine, if_exists="replace")
 
         # Backup on OneDrive
         path = self.getConfig(key="path_OneDrive")
         # Save new table
-        self.pandas_dataframe.to_csv(path + "\\" + tableName + ".csv", index=False)
+        pandas_dataframe.to_csv(path + "\\" + tableName + ".csv", index=False)
         # Log
-        rows_ex, start_date_ex, end_date_ex = len(self.pandas_dataframe.index), self.pandas_dataframe[date_col].min(), self.pandas_dataframe[date_col].max()
+        rows_ex, start_date_ex, end_date_ex = len(pandas_dataframe.index), pandas_dataframe[date_col].min(), pandas_dataframe[date_col].max()
         print("DATA MODULE - BACKUP - File created. Rows: " + str(rows_ex) + ", first date: " + datetime.strftime(start_date_ex, "%Y-%m-%d") + ", last date: "+ datetime.strftime(end_date_ex, "%Y-%m-%d"))
 
     # Method to read data from table
@@ -69,7 +68,7 @@ class DataModule:
         return dataframe
 
     # Method to update Table
-    def updateTable (self, tableName, date_col):
+    def updateTable (self, pandas_dataframe, tableName, date_col):
 
         # Main update: the "append" method should work, and this is standard.
         # But in this case it does not work, because for every update new columns could be added (if a generation
@@ -81,12 +80,12 @@ class DataModule:
         # Therefore, read existing
         existing_dataframe = self.loadDataFromTable(tableName=tableName)
         # Update through a concat on axis=0
-        new_dataframe = pd.concat([existing_dataframe, self.pandas_dataframe], axis=0)
+        new_dataframe = pd.concat([existing_dataframe, pandas_dataframe], axis=0)
         # Re-work dataframe (drop duplicates, fill the new columns with 0)
         new_dataframe = new_dataframe.drop_duplicates().reset_index()
         new_dataframe = new_dataframe.fillna(0)
         # Save back on SQL (with create table, unfortunately)
-        self.createTable(tableName=tableName, date_col=date_col)
+        self.createTable(pandas_dataframe=pandas_dataframe, tableName=tableName, date_col=date_col)
         # Get dataFrame rows and data
         rows_ex, start_date_ex, end_date_ex, number_of_zones = len(new_dataframe.index), new_dataframe[date_col].min(), new_dataframe[date_col].max(), new_dataframe["short_code"].unique()
 
@@ -95,7 +94,7 @@ class DataModule:
         # Read
         existing = pd.read_csv(path + "\\" + tableName + ".csv")
         # Update with a concat
-        new_data = pd.concat([existing, self.pandas_dataframe], axis=0)
+        new_data = pd.concat([existing, pandas_dataframe], axis=0)
         # Drop Duplicates
         new_data = new_data.drop_duplicates().reset_index(drop=True)
         rows_n, start_date_n, end_date_n = len(new_data.index), new_data[date_col].min(), new_data[date_col].max()
@@ -106,11 +105,11 @@ class DataModule:
         print("DATA MODULE - BACKUP - Rows after updating: " + str(rows_n) + ", first date: " +  datetime.strftime(start_date_n, "%Y-%m-%d") + ", last date: "+ datetime.strftime(end_date_n, "%Y-%m-%d") + ", Number of zones: " + str(number_of_zones) + ".")
 
     # Method to create or update Table
-    def createOrUpdate (self, tableName, date_col):
+    def createOrUpdate (self, tableName, date_col, pandas_dataframe):
 
         path = self.getConfig(key="path_OneDrive")
         if os.path.exists(path + "\\" + tableName + ".csv"):
-            self.updateTable(tableName=tableName, date_col=date_col)
+            self.updateTable(tableName=tableName, date_col=date_col, pandas_dataframe=pandas_dataframe)
         else:
-            self.createTable(tableName=tableName, date_col=date_col)
+            self.createTable(tableName=tableName, date_col=date_col, pandas_dataframe=pandas_dataframe)
 

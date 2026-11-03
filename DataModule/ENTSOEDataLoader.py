@@ -186,4 +186,4 @@ class ENTSOEDataLoader:
         # Load
         pandas_dataframe = self.downloadENTSOEData(geometry=geometry)
         # Save or Update
-        dm.DataModule(pandas_dataframe=pandas_dataframe).createOrUpdate(tableName=table_name, date_col=date_col)
+        dm.DataModule().createOrUpdate(pandas_dataframe=pandas_dataframe, tableName=table_name, date_col=date_col)
