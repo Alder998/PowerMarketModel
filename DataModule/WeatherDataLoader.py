@@ -7,6 +7,7 @@ import numpy as np
 from shapely.geometry import Point
 import pandas as pd
 import requests
+import DataModule as dm
 
 class WeatherDataLoader:
 
@@ -87,7 +88,7 @@ class WeatherDataLoader:
         return weatherDB
 
     # Method to load data from OpenMeteo
-    def loadWeatherForBiddingZone (self, n_points):
+    def loadAndSaveWeatherForBiddingZone (self, n_points, table_name):
 
         # Get coordinates
         coords = self.getPointsFromGeometry(n_points=n_points)
@@ -108,6 +109,10 @@ class WeatherDataLoader:
             weather_for_bz = pd.concat([weather_for_bz["map_code"], weather_for_bz.drop(columns=["map_code"])], axis=1)
             weather_data.append(weather_for_bz)
         weather_data = pd.concat([df for df in weather_data], axis=0)
+        weather_data = weather_data.reset_index()
+        weather_data = weather_data.rename(columns={"date":"Date"})
+        # Save on DB and on .csv
+        dm.DataModule().createOrUpdate(pandas_dataframe=weather_data, tableName=table_name, date_col="Date")
 
         return weather_data
 

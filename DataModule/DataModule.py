@@ -57,7 +57,7 @@ class DataModule:
         pandas_dataframe.to_csv(path + "\\" + tableName + ".csv", index=False)
         # Log
         rows_ex, start_date_ex, end_date_ex = len(pandas_dataframe.index), pandas_dataframe[date_col].min(), pandas_dataframe[date_col].max()
-        print("DATA MODULE - BACKUP - File created. Rows: " + str(rows_ex) + ", first date: " + datetime.strftime(start_date_ex, "%Y-%m-%d") + ", last date: "+ datetime.strftime(end_date_ex, "%Y-%m-%d"))
+        print("DATA MODULE - BACKUP - File created. Rows: " + str(rows_ex) + ", first date:", start_date_ex, ", last date: ", end_date_ex)
 
     # Method to read data from table
     def loadDataFromTable (self, tableName):
