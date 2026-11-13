@@ -7,15 +7,37 @@ import numpy as np
 from shapely.geometry import Point
 import pandas as pd
 import requests
+from pathlib import Path
 import DataModule as dm
+import json
 
 class WeatherDataLoader:
 
-    def __init__(self, start_date, end_date, bidding_zones):
+    def __init__(self, start_date, end_date):
         self.start_date = start_date
         self.end_date = end_date
-        self.bidding_zones = bidding_zones
+        self.bidding_zones = self.getENTSOEMap()["bidding_zones"]
+        self.interconnectors = self.getENTSOEMap()["interconnectors"]
         pass
+
+    def getENTSOEMap (self):
+
+        PROJECT_ROOT = Path(__file__).resolve().parents[1]
+        BIDDING_ZONE_PATH = PROJECT_ROOT / "DataModule" / "ENTSOE_map" / "bidding_zones_ENTSOE.json"
+        INTERCONNECTOR_PATH = PROJECT_ROOT / "DataModule" / "ENTSOE_map" / "interconnectors_ENTSOE.json"
+
+        if not BIDDING_ZONE_PATH.is_file():
+            raise FileNotFoundError("configuration file has not been found.")
+        if not INTERCONNECTOR_PATH.is_file():
+            raise FileNotFoundError("configuration file has not been found.")
+
+        with BIDDING_ZONE_PATH.open("r", encoding="utf-8") as file:
+            bidding_zones = json.load(file)
+
+        with INTERCONNECTOR_PATH.open("r", encoding="utf-8") as file:
+            interconnectors = json.load(file)
+
+        return {"bidding_zones": bidding_zones, "interconnectors": interconnectors}
 
     # Method to load geometry of bidding zones
     def getPointsFromGeometry (self, n_points):

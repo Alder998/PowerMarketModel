@@ -13,11 +13,12 @@ import DataModule as dm
 
 class ENTSOEDataLoader:
 
-    def __init__(self, start_date, end_date, bidding_zones):
+    def __init__(self, start_date, end_date):
         self.API_Key = self.getConfig("api_key_ENTSOE")
         self.start_date = start_date
         self.end_date = end_date
-        self.bidding_zones = bidding_zones
+        self.bidding_zones = self.getENTSOEMap()["bidding_zones"]
+        self.interconnectors = self.getENTSOEMap()["interconnectors"]
         pass
 
     def getConfig (self, key):
@@ -33,6 +34,25 @@ class ENTSOEDataLoader:
 
         api_key = config[key]
         return api_key
+
+    def getENTSOEMap (self):
+
+        PROJECT_ROOT = Path(__file__).resolve().parents[1]
+        BIDDING_ZONE_PATH = PROJECT_ROOT / "DataModule" / "ENTSOE_map" / "bidding_zones_ENTSOE.json"
+        INTERCONNECTOR_PATH = PROJECT_ROOT / "DataModule" / "ENTSOE_map" / "interconnectors_ENTSOE.json"
+
+        if not BIDDING_ZONE_PATH.is_file():
+            raise FileNotFoundError("configuration file has not been found.")
+        if not INTERCONNECTOR_PATH.is_file():
+            raise FileNotFoundError("configuration file has not been found.")
+
+        with BIDDING_ZONE_PATH.open("r", encoding="utf-8") as file:
+            bidding_zones = json.load(file)
+
+        with INTERCONNECTOR_PATH.open("r", encoding="utf-8") as file:
+            interconnectors = json.load(file)
+
+        return {"bidding_zones": bidding_zones, "interconnectors": interconnectors}
 
     def downloadENTSOEGenerationData(self, geometry=True):
 
@@ -188,12 +208,15 @@ class ENTSOEDataLoader:
         # Save or Update
         dm.DataModule().createOrUpdate(pandas_dataframe=pandas_dataframe, tableName=table_name, date_col=date_col)
 
-    # Method to store and save Interconnectors' flow
+    # Method to get and handle Interconnectors' flow
     def getInterconnectorFlows (self):
 
+        # Create the list of available borders
+        borders = {1: ""}
 
         return 0
 
+    # Method to store and save Interconnectors' flow
     def DownloadAndSaveInterconnectorsFlow (self, table_name, date_col):
 
         # Load
