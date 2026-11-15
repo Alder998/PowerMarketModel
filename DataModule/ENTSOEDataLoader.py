@@ -212,9 +212,46 @@ class ENTSOEDataLoader:
     def getInterconnectorFlows (self):
 
         # Create the list of available borders
-        borders = {1: ""}
+        client = EntsoePandasClient(api_key=self.API_Key)
 
-        return 0
+        interconnectors = []
+        for item in self.interconnectors:
+            print("INTERCONNECTORS - Processing Flows: " + self.interconnectors[item]["name"] + " - " + str(item) + " out of " + str(len(self.interconnectors)) + "...")
+            try:
+                flows = client.query_crossborder_flows(country_code_from=self.interconnectors[item]["code_from"],
+                                                       country_code_to=self.interconnectors[item]["code_to"],
+                                                       start=pd.Timestamp(self.start_date, tz="Europe/Brussels"),
+                                                       end=pd.Timestamp(self.end_date, tz="Europe/Brussels"))
+                # It is needed to handle it as SQL
+                flows = pd.DataFrame(flows)
+                flows = flows.set_axis(["Interconnector_flow"], axis=1)
+                flows["interconnector_name"] = self.interconnectors[item]["name"]
+                flows["country_code_from"] = self.interconnectors[item]["code_from"]
+                flows["country_code_to"] = self.interconnectors[item]["code_to"]
+                flows = flows[["interconnector_name", "country_code_from", "country_code_to", "Interconnector_flow"]]
+                interconnectors.append(flows)
+            except:
+                print("INTERCONNECTORS - Interconnectors' flow not found for border: " + self.interconnectors[item]["name"] + ".")
+
+        interconnectors = pd.concat([df for df in interconnectors], axis=0).reset_index()
+        interconnectors = interconnectors.rename(columns={"index": "Date"})
+
+        # Merge with codes from Bidding Zones (short_code, map_code)
+        bz_data = pd.DataFrame(self.bidding_zones).transpose().reset_index().set_axis(["bz_name", "short_code", "code", "map_code"],axis=1)
+        # Map codes to, map codes from
+        intc1 = pd.merge(left=interconnectors, right=bz_data[["code", "map_code"]], left_on=["country_code_from"], right_on=["code"], how="inner")
+        intc1 = intc1.rename(columns={"map_code": "map_code_from"})
+        intc2 = pd.merge(left=intc1, right=bz_data[["code", "map_code"]], left_on=["country_code_to"], right_on=["code"], how="inner")
+        intc2 = intc2.rename(columns={"map_code": "map_code_to"}).drop(columns=["code_x", "code_y"])
+        # Short codes to, short codes from
+        intc3 = pd.merge(left=intc2, right=bz_data[["code", "short_code"]], left_on=["country_code_from"], right_on=["code"], how="inner")
+        intc3 = intc3.rename(columns={"short_code": "short_code_from"})
+        intc4 = pd.merge(left=intc3, right=bz_data[["code", "short_code"]], left_on=["country_code_to"], right_on=["code"], how="inner")
+        intc4 = intc4.rename(columns={"short_code": "short_code_to"}).drop(columns=["code_x", "code_y"])
+
+        interconnectors_with_codes = pd.concat([intc4.drop(columns=["Interconnector_flow"]), intc4["Interconnector_flow"]], axis=1)
+
+        return interconnectors_with_codes
 
     # Method to store and save Interconnectors' flow
     def DownloadAndSaveInterconnectorsFlow (self, table_name, date_col):

@@ -81,11 +81,13 @@ class DataModule:
         existing_dataframe = self.loadDataFromTable(tableName=tableName)
         # Update through a concat on axis=0
         new_dataframe = pd.concat([existing_dataframe, pandas_dataframe], axis=0)
+        # Uniform Dates into datetime format, and remove zones
+        new_dataframe[date_col] = pd.to_datetime(new_dataframe[date_col]).dt.tz_localize(None)
         # Re-work dataframe (drop duplicates, fill the new columns with 0)
         new_dataframe = new_dataframe.drop_duplicates().reset_index()
         new_dataframe = new_dataframe.fillna(0)
         # Save back on SQL (with create table, unfortunately)
-        self.createTable(pandas_dataframe=pandas_dataframe, tableName=tableName, date_col=date_col)
+        self.createTable(pandas_dataframe=new_dataframe, tableName=tableName, date_col=date_col)
         # Get dataFrame rows and data
         rows_ex, start_date_ex, end_date_ex, number_of_zones = len(new_dataframe.index), new_dataframe[date_col].min(), new_dataframe[date_col].max(), new_dataframe["short_code"].unique()
 

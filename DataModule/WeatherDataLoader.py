@@ -43,7 +43,7 @@ class WeatherDataLoader:
     def getPointsFromGeometry (self, n_points):
 
         # Use the bidding zones dict to get a series of uniform points
-        url = "https://raw.githubusercontent.com/electricitymaps/electricitymaps-contrib/v1.238.0/web/geo/world.geojson"
+        url = "https://raw.githubusercontent.com/electricitymaps/electricitymaps-contrib/master/geo/world.geojson"
         entsoe_data_unique_zones = gpd.read_file(url)
         zones_gdf = gpd.GeoDataFrame(entsoe_data_unique_zones, geometry="geometry", crs="EPSG:4326")
         # Filter for the selected zones
