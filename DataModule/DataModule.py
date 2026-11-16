@@ -48,16 +48,20 @@ class DataModule:
     # Method to create Table
     def createTable (self, pandas_dataframe, tableName, date_col):
 
+        # Uniform dates
+        pandas_dataframe[date_col] = pd.to_datetime(pandas_dataframe[date_col], utc=True).dt.tz_localize(None)
+
         # Create Table on SQL (postgres)
-        pandas_dataframe.to_sql(name=tableName, con=self.engine, if_exists="replace")
+        pandas_dataframe.to_sql(name=tableName, con=self.engine, if_exists="replace", index=False)
 
         # Backup on OneDrive
         path = self.getConfig(key="path_OneDrive")
         # Save new table
         pandas_dataframe.to_csv(path + "\\" + tableName + ".csv", index=False)
         # Log
-        rows_ex, start_date_ex, end_date_ex = len(pandas_dataframe.index), pandas_dataframe[date_col].min(), pandas_dataframe[date_col].max()
-        print("DATA MODULE - BACKUP - File created. Rows: " + str(rows_ex) + ", first date:", start_date_ex, ", last date: ", end_date_ex)
+        rows_ex, start_date_ex, end_date_ex = len(pandas_dataframe.index), datetime.strftime(pandas_dataframe[date_col].min(), "%d/%m/%Y"), datetime.strftime(pandas_dataframe[date_col].max(), "%d/%m/%Y")
+
+        print("DATA MODULE - BACKUP - File created. Rows: " + str(rows_ex) + ", first date: " + start_date_ex + ", last date: " + end_date_ex + ".")
 
     # Method to read data from table
     def loadDataFromTable (self, tableName):
@@ -82,14 +86,14 @@ class DataModule:
         # Update through a concat on axis=0
         new_dataframe = pd.concat([existing_dataframe, pandas_dataframe], axis=0)
         # Uniform Dates into datetime format, and remove zones
-        new_dataframe[date_col] = pd.to_datetime(new_dataframe[date_col]).dt.tz_localize(None)
+        new_dataframe[date_col] = pd.to_datetime(new_dataframe[date_col], utc=True).dt.tz_localize(None)
         # Re-work dataframe (drop duplicates, fill the new columns with 0)
         new_dataframe = new_dataframe.drop_duplicates().reset_index()
         new_dataframe = new_dataframe.fillna(0)
         # Save back on SQL (with create table, unfortunately)
         self.createTable(pandas_dataframe=new_dataframe, tableName=tableName, date_col=date_col)
         # Get dataFrame rows and data
-        rows_ex, start_date_ex, end_date_ex, number_of_zones = len(new_dataframe.index), new_dataframe[date_col].min(), new_dataframe[date_col].max(), new_dataframe["short_code"].unique()
+        rows_ex, start_date_ex, end_date_ex = len(new_dataframe.index), datetime.strftime(new_dataframe[date_col].min(), "%d/%m/%Y"), datetime.strftime(new_dataframe[date_col].max(), "%d/%m/%Y")
 
         # Backup
         path = self.getConfig(key="path_OneDrive")
@@ -103,8 +107,8 @@ class DataModule:
         # Save again
         new_data.to_csv(path + "\\" + tableName + ".csv", index=False)
         # Log
-        print("DATA MODULE - BACKUP - Rows before updating: " + str(rows_ex) + ", first date: " + datetime.strftime(start_date_ex, "%Y-%m-%d") + ", last date: "+ datetime.strftime(end_date_ex, "%Y-%m-%d") + ", Number of zones: " + str(number_of_zones) + ".")
-        print("DATA MODULE - BACKUP - Rows after updating: " + str(rows_n) + ", first date: " +  datetime.strftime(start_date_n, "%Y-%m-%d") + ", last date: "+ datetime.strftime(end_date_n, "%Y-%m-%d") + ", Number of zones: " + str(number_of_zones) + ".")
+        print("DATA MODULE - BACKUP - Rows BEFORE updating: " + str(rows_ex) + ", first date: " + start_date_ex + ", last date: " + end_date_ex + ".")
+        print("DATA MODULE - BACKUP - Rows AFTER updating: " + str(rows_n) + ", first date: " +  start_date_n + ", last date: " + end_date_n + ".")
 
     # Method to create or update Table
     def createOrUpdate (self, tableName, date_col, pandas_dataframe):
