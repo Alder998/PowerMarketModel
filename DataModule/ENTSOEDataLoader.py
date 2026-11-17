@@ -222,22 +222,26 @@ class ENTSOEDataLoader:
                                                        country_code_to=self.interconnectors[item]["code_to"],
                                                        start=pd.Timestamp(self.start_date, tz="Europe/Brussels"),
                                                        end=pd.Timestamp(self.end_date, tz="Europe/Brussels"))
-                capacity = client.query_net_transfer_capacity_dayahead(country_code_from=self.interconnectors[item]["code_from"],
-                                                                       country_code_to=self.interconnectors[item]["code_to"],
-                                                                       start=pd.Timestamp(self.start_date, tz="Europe/Brussels"),
-                                                                       end=pd.Timestamp(self.end_date, tz="Europe/Brussels"))
+                # Add try on capacity
+                try:
+                    capacity = client.query_net_transfer_capacity_dayahead(country_code_from=self.interconnectors[item]["code_from"],
+                                                                           country_code_to=self.interconnectors[item]["code_to"],
+                                                                           start=pd.Timestamp(self.start_date, tz="Europe/Brussels"),
+                                                                           end=pd.Timestamp(self.end_date, tz="Europe/Brussels"))
+                except:
+                    capacity = pd.Series([])
                 # It is needed to handle it as SQL
                 flows = pd.DataFrame(flows)
                 capacity = pd.DataFrame(capacity)
-                flows_data = pd.concat([capacity, flows], axis=1)
+                flows_data = pd.concat([capacity, flows], axis=1).fillna(0)
                 flows_data = flows_data.set_axis(["Interconnector_capacity", "Interconnector_flow"], axis=1).ffill()
                 flows_data["interconnector_name"] = self.interconnectors[item]["name"]
                 flows_data["country_code_from"] = self.interconnectors[item]["code_from"]
                 flows_data["country_code_to"] = self.interconnectors[item]["code_to"]
-                flows_data = flows_data[["interconnector_name", "country_code_from", "country_code_to", "Interconnector_flow"]]
+                flows_data = flows_data[["interconnector_name", "country_code_from", "country_code_to", "Interconnector_capacity", "Interconnector_flow"]]
                 interconnectors.append(flows_data)
             except:
-                print("INTERCONNECTORS - Interconnectors' flow not found for border: " + self.interconnectors[item]["name"] + ".")
+                print("INTERCONNECTORS - Interconnectors' flow NOT FOUND for border: " + self.interconnectors[item]["name"] + ".")
 
         interconnectors = pd.concat([df for df in interconnectors], axis=0).reset_index()
         interconnectors = interconnectors.rename(columns={"index": "Date"})
