@@ -222,14 +222,20 @@ class ENTSOEDataLoader:
                                                        country_code_to=self.interconnectors[item]["code_to"],
                                                        start=pd.Timestamp(self.start_date, tz="Europe/Brussels"),
                                                        end=pd.Timestamp(self.end_date, tz="Europe/Brussels"))
+                capacity = client.query_net_transfer_capacity_dayahead(country_code_from=self.interconnectors[item]["code_from"],
+                                                                       country_code_to=self.interconnectors[item]["code_to"],
+                                                                       start=pd.Timestamp(self.start_date, tz="Europe/Brussels"),
+                                                                       end=pd.Timestamp(self.end_date, tz="Europe/Brussels"))
                 # It is needed to handle it as SQL
                 flows = pd.DataFrame(flows)
-                flows = flows.set_axis(["Interconnector_flow"], axis=1)
-                flows["interconnector_name"] = self.interconnectors[item]["name"]
-                flows["country_code_from"] = self.interconnectors[item]["code_from"]
-                flows["country_code_to"] = self.interconnectors[item]["code_to"]
-                flows = flows[["interconnector_name", "country_code_from", "country_code_to", "Interconnector_flow"]]
-                interconnectors.append(flows)
+                capacity = pd.DataFrame(capacity)
+                flows_data = pd.concat([capacity, flows], axis=1)
+                flows_data = flows_data.set_axis(["Interconnector_capacity", "Interconnector_flow"], axis=1).ffill()
+                flows_data["interconnector_name"] = self.interconnectors[item]["name"]
+                flows_data["country_code_from"] = self.interconnectors[item]["code_from"]
+                flows_data["country_code_to"] = self.interconnectors[item]["code_to"]
+                flows_data = flows_data[["interconnector_name", "country_code_from", "country_code_to", "Interconnector_flow"]]
+                interconnectors.append(flows_data)
             except:
                 print("INTERCONNECTORS - Interconnectors' flow not found for border: " + self.interconnectors[item]["name"] + ".")
 
@@ -249,7 +255,8 @@ class ENTSOEDataLoader:
         intc4 = pd.merge(left=intc3, right=bz_data[["code", "short_code"]], left_on=["country_code_to"], right_on=["code"], how="inner")
         intc4 = intc4.rename(columns={"short_code": "short_code_to"}).drop(columns=["code_x", "code_y"])
 
-        interconnectors_with_codes = pd.concat([intc4.drop(columns=["Interconnector_flow"]), intc4["Interconnector_flow"]], axis=1)
+        interconnectors_with_codes = pd.concat([intc4.drop(columns=["Interconnector_capacity", "Interconnector_flow"]),
+                                                     intc4["Interconnector_capacity", "Interconnector_flow"]], axis=1)
 
         return interconnectors_with_codes
 
