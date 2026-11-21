@@ -260,7 +260,7 @@ class ENTSOEDataLoader:
         intc4 = intc4.rename(columns={"short_code": "short_code_to"}).drop(columns=["code_x", "code_y"])
 
         interconnectors_with_codes = pd.concat([intc4.drop(columns=["Interconnector_capacity", "Interconnector_flow"]),
-                                                     intc4["Interconnector_capacity", "Interconnector_flow"]], axis=1)
+                                                     intc4[["Interconnector_capacity", "Interconnector_flow"]]], axis=1)
 
         return interconnectors_with_codes
 

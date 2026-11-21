@@ -83,6 +83,11 @@ class DataModule:
 
         # Therefore, read existing
         existing_dataframe = self.loadDataFromTable(tableName=tableName)
+        # Drop columns if necessary
+        if "level_0" in existing_dataframe.columns:
+            existing_dataframe = existing_dataframe.drop(columns=["level_0"])
+        if "index" in existing_dataframe.columns:
+            existing_dataframe = existing_dataframe.drop(columns=["index"])
         # Update through a concat on axis=0
         new_dataframe = pd.concat([existing_dataframe, pandas_dataframe], axis=0)
         # Uniform Dates into datetime format, and remove zones
@@ -92,8 +97,6 @@ class DataModule:
         new_dataframe = new_dataframe.fillna(0)
         # Save back on SQL (with create table, unfortunately)
         self.createTable(pandas_dataframe=new_dataframe, tableName=tableName, date_col=date_col)
-        # Get dataFrame rows and data
-        rows_ex, start_date_ex, end_date_ex = len(new_dataframe.index), datetime.strftime(new_dataframe[date_col].min(), "%d/%m/%Y"), datetime.strftime(new_dataframe[date_col].max(), "%d/%m/%Y")
 
         # Backup
         path = self.getConfig(key="path_OneDrive")
@@ -103,12 +106,8 @@ class DataModule:
         new_data = pd.concat([existing, pandas_dataframe], axis=0)
         # Drop Duplicates
         new_data = new_data.drop_duplicates().reset_index(drop=True)
-        rows_n, start_date_n, end_date_n = len(new_data.index), new_data[date_col].min(), new_data[date_col].max()
         # Save again
         new_data.to_csv(path + "\\" + tableName + ".csv", index=False)
-        # Log
-        print("DATA MODULE - BACKUP - Rows BEFORE updating: " + str(rows_ex) + ", first date: " + start_date_ex + ", last date: " + end_date_ex + ".")
-        print("DATA MODULE - BACKUP - Rows AFTER updating: " + str(rows_n) + ", first date: " +  start_date_n + ", last date: " + end_date_n + ".")
 
     # Method to create or update Table
     def createOrUpdate (self, tableName, date_col, pandas_dataframe):
