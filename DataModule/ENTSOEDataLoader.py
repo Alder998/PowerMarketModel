@@ -10,6 +10,7 @@ from shapely.geometry import Point
 import json
 from pathlib import Path
 import DataModule as dm
+from datetime import datetime
 
 class ENTSOEDataLoader:
 
@@ -58,8 +59,6 @@ class ENTSOEDataLoader:
 
         aggregate_generation = []
         for i, bz in enumerate(self.bidding_zones):
-            print("ENTSO-E DATA LOADER - Processing Generation: " + bz + " - " + str(i + 1) + " out of " + str(
-                len(self.bidding_zones.keys())) + "...")
             client = EntsoePandasClient(api_key=self.API_Key)
             generation = client.query_generation(self.bidding_zones[bz]["code"], start=pd.Timestamp(self.start_date, tz="Europe/Brussels"), end=pd.Timestamp(self.end_date, tz="Europe/Brussels"))
             # Process columns
@@ -87,6 +86,7 @@ class ENTSOEDataLoader:
             generation["map_code"] = self.bidding_zones[bz]["map_code"]
 
             # Append
+            print("ENTSO-E DATA LOADER - Processed Generation: " + bz + " - " + str(i + 1) + " out of " + str(len(self.bidding_zones.keys())) + ". Last date: " + datetime.strftime(pd.to_datetime(generation.index).max(), "%Y-%m-%d") + ".")
             aggregate_generation.append(generation)
 
         aggregate_generation = pd.concat([df for df in aggregate_generation], axis=0)
