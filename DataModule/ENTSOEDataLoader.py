@@ -106,8 +106,6 @@ class ENTSOEDataLoader:
 
         aggregate_load_data = []
         for i, bz in enumerate(self.bidding_zones):
-            print("ENTSO-E DATA LOADER - Processing Load, Load Forecast, DAM Prices: " + bz + " - " + str(i + 1) + " out of " + str(
-                len(self.bidding_zones.keys())) + "...")
             client = EntsoePandasClient(api_key=self.API_Key)
 
             # Launch query
@@ -126,7 +124,9 @@ class ENTSOEDataLoader:
             aggregate_data["map_code"] = self.bidding_zones[bz]["map_code"]
 
             # Append
+            print("ENTSO-E DATA LOADER - Processed Load, DAM Prices for : " + bz + " - " + str(i + 1) + " out of " + str(len(self.bidding_zones.keys())) + ". Last date: " + datetime.strftime(pd.to_datetime(aggregate_data.index).max(), "%Y-%m-%d") + ".")
             aggregate_load_data.append(aggregate_data)
+
         aggregate_load_data = pd.concat([df for df in aggregate_load_data], axis=0).dropna()
         aggregate_load_data = aggregate_load_data.reset_index()
         aggregate_load_data = aggregate_load_data.rename(columns={"index": "Date"})
