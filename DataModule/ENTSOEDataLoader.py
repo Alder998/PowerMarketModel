@@ -70,7 +70,7 @@ class ENTSOEDataLoader:
                     if (col == "Date") | (col == "Bidding_zone") | (col == "Bidding_zone_code"):
                         new_columns.append((col, ""))
                     else:
-                        new_columns.append((col, "Actual_aggregated"))
+                        new_columns.append((col, "Actual Aggregated"))
             generation.columns = pd.MultiIndex.from_tuples(new_columns)
 
             # Drop duplicated columns
@@ -149,7 +149,7 @@ class ENTSOEDataLoader:
             merge_cols = merge_cols + ["geometry"]
 
         entsoe_aggregate_data = pd.merge(left=gen_data, right=load_data,
-                                         on=merge_cols, how="inner")
+                                         on=merge_cols, how="outer")
 
         aggregate_entsoe_zones_final = pd.concat([entsoe_aggregate_data[merge_cols], entsoe_aggregate_data.drop(columns=merge_cols)],axis=1)
 

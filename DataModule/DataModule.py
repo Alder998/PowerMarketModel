@@ -93,7 +93,7 @@ class DataModule:
         # Uniform Dates into datetime format, and remove zones
         new_dataframe[date_col] = pd.to_datetime(new_dataframe[date_col], utc=True).dt.tz_localize(None)
         # Re-work dataframe (drop duplicates, fill the new columns with 0)
-        new_dataframe = new_dataframe.drop_duplicates().reset_index()
+        new_dataframe = new_dataframe.drop_duplicates(keep="last").reset_index()
         new_dataframe = new_dataframe.fillna(0)
         # Save back on SQL (with create table, unfortunately)
         self.createTable(pandas_dataframe=new_dataframe, tableName=tableName, date_col=date_col)
